@@ -1,0 +1,40 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# Audio files (never commit real audio)
+tests/fixtures/audio/*.wav
+tests/fixtures/audio/*.mp3
+tests/fixtures/audio/*.m4a
+!tests/fixtures/audio/.gitkeep
+
+# Coverage
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs (never persist)
+*.log
+logs/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Knowledge base data — bundled in repo for standalone use
+# To update: run `make sync` (requires neuro-plans repo as sibling directory)
+# data/plans.json
+# data/medications.json
+
+# Drizzle migrations — committed so engineers can run db:migrate without generating
+# src/db/migrations/

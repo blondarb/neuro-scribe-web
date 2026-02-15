@@ -1,0 +1,664 @@
+# Neuro Scribe — Test Cases
+# Version: 0.1
+# Date: 2026-02-11
+#
+# Structure mirrors neuro-plans qa/TEST_CASES.yaml
+# Each test case has: id, category, milestone, title, steps, expected, priority
+
+---
+
+# =============================================================================
+# TRANSCRIPTION ACCURACY (TA)
+# =============================================================================
+
+- id: TA-01
+  category: transcription
+  milestone: M1
+  title: General speech word error rate
+  priority: P0
+  preconditions:
+    - STT service configured and running
+    - Test audio corpus available (10+ general speech samples)
+  steps:
+    - Play 10 general speech audio samples through STT pipeline
+    - Compare output to ground-truth transcripts
+    - Calculate word error rate (WER) for each sample
+    - Calculate aggregate WER across all samples
+  expected:
+    - Aggregate WER ≤ 5%
+    - No single sample exceeds 10% WER
+
+- id: TA-02
+  category: transcription
+  milestone: M1
+  title: Neurology term transcription accuracy
+  priority: P0
+  preconditions:
+    - Neuro vocabulary boost list loaded (500 terms)
+    - Audio samples containing neurology terms available
+  steps:
+    - Play audio samples containing 200 core neurology terms
+    - Check each term in STT output against expected spelling
+    - Calculate term-level accuracy
+  expected:
+    - ≥ 95% of 200 core neurology terms correctly transcribed
+    - Common terms (seizure, stroke, neuropathy) at 100%
+  terms_to_test:
+    - fasciculations, proprioception, Babinski, Romberg
+    - levetiracetam, lacosamide, carbamazepine, phenytoin
+    - demyelination, oligoclonal, cerebrospinal
+    - hemiparesis, dysarthria, ataxia, nystagmus
+
+- id: TA-03
+  category: transcription
+  milestone: M1
+  title: Medication name transcription accuracy
+  priority: P0
+  preconditions:
+    - Medication boost list loaded from medications.json
+  steps:
+    - Play audio containing top 100 neurology medication names
+    - Compare STT output to expected medication names
+    - Check both generic and brand names
+  expected:
+    - ≥ 98% of medication names correctly transcribed
+    - Brand/generic pairs both recognized (e.g., Keppra/levetiracetam)
+
+- id: TA-04
+  category: transcription
+  milestone: M1
+  title: Speaker diarization accuracy
+  priority: P1
+  preconditions:
+    - Two-speaker audio samples available
+    - Diarization enabled in STT config
+  steps:
+    - Process 10 two-speaker encounter audio files
+    - Compare speaker labels to ground truth
+    - Calculate segment-level diarization accuracy
+  expected:
+    - ≥ 90% of segments correctly labeled physician vs. patient
+    - Speaker switches detected within 1 second
+
+- id: TA-05
+  category: transcription
+  milestone: M1
+  title: Background noise handling
+  priority: P1
+  preconditions:
+    - Audio samples with simulated clinic background noise
+  steps:
+    - Process audio with moderate background noise (50dB ambient)
+    - Calculate WER compared to clean audio baseline
+  expected:
+    - WER ≤ 10% with moderate clinic noise
+    - Degradation from clean audio ≤ 5 percentage points
+
+- id: TA-06
+  category: transcription
+  milestone: M1
+  title: Accented speech handling
+  priority: P2
+  preconditions:
+    - Audio samples from speakers with varied accents
+  steps:
+    - Process audio from 3 different accent profiles
+    - Calculate WER per accent profile
+  expected:
+    - WER ≤ 8% across all accent profiles
+    - No single profile exceeds 12% WER
+
+# =============================================================================
+# NOTE GENERATION (NG)
+# =============================================================================
+
+- id: NG-01
+  category: note-generation
+  milestone: M2
+  title: SOAP section identification
+  priority: P0
+  preconditions:
+    - Note generation service running
+    - Test transcripts with all SOAP components available
+  steps:
+    - Submit 10 test transcripts to note generation
+    - Check output for Subjective, Objective, Assessment, Plan sections
+    - Verify section content maps to correct transcript segments
+  expected:
+    - All 4 SOAP sections present when transcript contains relevant data
+    - No empty sections when data exists in transcript
+    - Sections correctly attributed (exam findings in Objective, not Subjective)
+
+- id: NG-02
+  category: note-generation
+  milestone: M2
+  title: Neuro exam completeness
+  priority: P0
+  preconditions:
+    - Transcripts with detailed neuro exam dictation
+  steps:
+    - Submit transcripts containing full neurological exam
+    - Check for subsections: mental status, cranial nerves, motor, sensory, reflexes, coordination, gait
+    - Verify individual exam findings are correctly placed
+  expected:
+    - All mentioned exam components appear in structured output
+    - Exam findings in correct subsection (e.g., "biceps 2+" in reflexes, not motor)
+    - Laterality preserved (e.g., "left arm weakness" not generalized)
+
+- id: NG-03
+  category: note-generation
+  milestone: M2
+  title: Medication extraction
+  priority: P0
+  preconditions:
+    - Transcripts mentioning various medications with doses
+  steps:
+    - Submit transcripts mentioning 5+ medications with doses
+    - Check that all medications appear in note output
+    - Verify dose, route, and frequency captured
+  expected:
+    - 100% of mentioned medications captured in note
+    - Doses correctly transcribed (not hallucinated or altered)
+    - Route and frequency included when mentioned
+
+- id: NG-04
+  category: note-generation
+  milestone: M2
+  title: No hallucinated findings
+  priority: P0
+  preconditions:
+    - Transcripts with known limited exam findings
+  steps:
+    - Submit transcript with deliberately limited exam (e.g., only CN and motor tested)
+    - Check that note does not include findings for untested domains
+    - Flag any clinical finding in note not sourced from transcript
+  expected:
+    - Zero exam findings that weren't discussed in transcript
+    - Untested domains either omitted or marked "not tested"
+    - No invented vital signs, lab values, or imaging results
+
+- id: NG-05
+  category: note-generation
+  milestone: M2
+  title: Assessment accuracy
+  priority: P0
+  preconditions:
+    - Transcripts with clear diagnostic impressions
+  steps:
+    - Submit 10 transcripts where physician states clear assessment
+    - Compare generated assessment to physician's stated impression
+    - Score accuracy (correct/partially correct/incorrect)
+  expected:
+    - ≥ 90% of assessments correctly capture physician's diagnostic impression
+    - No assessment contradicts the transcript content
+
+- id: NG-06
+  category: note-generation
+  milestone: M2
+  title: Plan completeness
+  priority: P1
+  preconditions:
+    - Transcripts with multi-item plans
+  steps:
+    - Submit transcripts where physician discusses 3+ plan items
+    - Check that all plan items appear in generated note
+    - Verify plan items are actionable (not vague summaries)
+  expected:
+    - All discussed plan items captured
+    - Medications, labs, imaging, referrals, follow-up each captured when mentioned
+    - Plan items are specific (e.g., "MRI brain with contrast" not "imaging")
+
+- id: NG-07
+  category: note-generation
+  milestone: M2
+  title: ICD-10 code accuracy
+  priority: P1
+  preconditions:
+    - Assessment text with mappable diagnoses
+    - ICD-10 mapping from plans available
+  steps:
+    - Generate notes for 10 encounters with common neuro diagnoses
+    - Check suggested ICD-10 codes against expected codes
+  expected:
+    - ≥ 85% of suggested ICD-10 codes are correct or clinically appropriate
+    - No suggested code contradicts the stated diagnosis
+
+- id: NG-08
+  category: note-generation
+  milestone: M2
+  title: Note formatting consistency
+  priority: P1
+  steps:
+    - Generate 20 notes across different encounter types
+    - Check structural consistency (headings, bullet vs. prose, spacing)
+  expected:
+    - Consistent heading structure across all notes
+    - No markdown artifacts or formatting errors
+    - EHR-paste-ready formatting (no raw markdown in clipboard output)
+
+# =============================================================================
+# KNOWLEDGE INTEGRATION (KI)
+# =============================================================================
+
+- id: KI-01
+  category: knowledge
+  milestone: M3
+  title: Plan matching for common diagnoses
+  priority: P0
+  preconditions:
+    - Knowledge service loaded with plans.json
+    - Diagnosis extraction working
+  steps:
+    - Submit encounters for 20 common neuro diagnoses
+    - Check that correct plan is matched for each
+  expected:
+    - Correct plan matched for ≥ 18/20 common diagnoses
+    - Matched plans are the most specific available (e.g., "epilepsy-management" not just "seizure")
+  diagnoses_to_test:
+    - new onset seizure, status epilepticus, epilepsy management
+    - acute ischemic stroke, TIA, intracerebral hemorrhage
+    - migraine, cluster headache, tension headache
+    - multiple sclerosis, Guillain-Barre, myasthenia gravis
+    - Parkinson disease, essential tremor
+    - bacterial meningitis, encephalitis
+    - carpal tunnel, lumbar radiculopathy
+    - dementia, delirium
+
+- id: KI-02
+  category: knowledge
+  milestone: M3
+  title: Plan matching for uncommon diagnoses
+  priority: P1
+  steps:
+    - Submit encounters for 10 less common diagnoses
+    - Check plan matching behavior
+  expected:
+    - Correct plan matched when one exists
+    - Graceful fallback (no match) when plan doesn't exist
+    - No incorrect plan suggested
+
+- id: KI-03
+  category: knowledge
+  milestone: M3
+  title: Medication dose validation — flags discrepancy
+  priority: P0
+  preconditions:
+    - Medications.json loaded in knowledge service
+  steps:
+    - Submit encounter where physician dictates non-standard dose
+    - Check for dose discrepancy alert
+  expected:
+    - Alert generated when dictated dose differs from plan-recommended by > 20%
+    - Alert shows both dictated dose and recommended range
+    - Alert is informational, not blocking
+
+- id: KI-04
+  category: knowledge
+  milestone: M3
+  title: Medication dose validation — no false alerts
+  priority: P0
+  steps:
+    - Submit encounter with standard doses matching plan recommendations
+    - Verify no dose alerts triggered
+  expected:
+    - Zero false alerts when dose is within recommended range
+    - Standard dose variations (e.g., 250mg vs 500mg levetiracetam) not flagged as errors
+
+- id: KI-05
+  category: knowledge
+  milestone: M3
+  title: Differential diagnosis suggestions
+  priority: P1
+  steps:
+    - Submit encounter with a diagnosis that has plan-defined differentials
+    - Check suggested differentials against plan data
+  expected:
+    - Relevant differentials from matched plan are suggested
+    - Differentials already mentioned by physician are not re-suggested
+    - Suggestions presented as supplementary, not corrective
+
+- id: KI-06
+  category: knowledge
+  milestone: M3
+  title: Evidence citation attachment
+  priority: P2
+  steps:
+    - Generate note for encounter matching a plan with PubMed references
+    - Check if citations are attached to relevant sections
+  expected:
+    - At least 1 relevant citation attached to assessment or plan section
+    - Citations are valid PubMed references (not hallucinated)
+    - Citations sourced from matched plan's evidence section
+
+# =============================================================================
+# SECURITY & COMPLIANCE (SC)
+# =============================================================================
+
+- id: SC-01
+  category: security
+  milestone: M5
+  title: No PHI in application logs
+  priority: P0
+  steps:
+    - Process 10 encounters end-to-end
+    - Scan all application log files for PHI patterns
+    - Check for patient names, dates of birth, MRNs, transcript text
+  expected:
+    - Zero PHI detected in any log file
+    - Log entries contain only operational data (timestamps, request IDs, status codes)
+
+- id: SC-02
+  category: security
+  milestone: M5
+  title: No PHI in error messages
+  priority: P0
+  steps:
+    - Trigger various error conditions (invalid input, service failure, timeout)
+    - Capture all error responses returned to client
+    - Scan for PHI content
+  expected:
+    - All client-facing errors are generic (e.g., "Processing failed")
+    - No transcript text, patient data, or note content in error responses
+    - Detailed errors logged to audit log only (not application log)
+
+- id: SC-03
+  category: security
+  milestone: M5
+  title: No PHI in URLs
+  priority: P0
+  steps:
+    - Capture all HTTP requests during full encounter workflow
+    - Check URL paths and query parameters for PHI
+  expected:
+    - Zero PHI in any URL path or query parameter
+    - All PHI transmitted in POST/PUT request bodies
+    - Encounter IDs use opaque UUIDs, not patient identifiers
+
+- id: SC-04
+  category: security
+  milestone: M5
+  title: Audio data ephemeral
+  priority: P0
+  steps:
+    - Process an encounter with audio
+    - Check all storage locations (filesystem, database, object storage)
+    - Verify no audio data persists after transcription completes
+  expected:
+    - Audio data not present on any persistent storage after processing
+    - Temporary files (if any) deleted within 60 seconds of transcription completion
+    - No audio data in database
+
+- id: SC-05
+  category: security
+  milestone: M5
+  title: Database encryption at rest
+  priority: P0
+  steps:
+    - Verify database encryption configuration
+    - Attempt to read raw database files
+  expected:
+    - Database configured with AES-256 encryption at rest
+    - Raw database files are not human-readable
+
+- id: SC-06
+  category: security
+  milestone: M5
+  title: Encryption in transit
+  priority: P0
+  steps:
+    - Capture network traffic during encounter workflow
+    - Verify TLS version and cipher suite
+  expected:
+    - All connections use TLS 1.2 or higher
+    - No plaintext HTTP connections accepted
+    - HSTS header present
+
+- id: SC-07
+  category: security
+  milestone: M5
+  title: Session timeout
+  priority: P1
+  steps:
+    - Authenticate and start a session
+    - Wait for idle timeout period (15 minutes)
+    - Attempt to make an API request
+  expected:
+    - Session expires after 15 minutes of inactivity
+    - Expired session returns 401
+    - User must re-authenticate
+
+- id: SC-08
+  category: security
+  milestone: M5
+  title: Authentication required on all endpoints
+  priority: P0
+  steps:
+    - Enumerate all API endpoints
+    - Send requests without authentication token
+    - Send requests with expired/invalid token
+  expected:
+    - All endpoints (except /health) return 401 without valid token
+    - Invalid tokens return 401 (not 500)
+    - Health endpoint returns only status, no PHI
+
+- id: SC-09
+  category: security
+  milestone: M5
+  title: Audit log completeness
+  priority: P0
+  steps:
+    - Process a full encounter (record, transcribe, generate, edit, finalize)
+    - Check audit log for all PHI access events
+  expected:
+    - Audit log entry for transcript creation
+    - Audit log entry for note generation
+    - Audit log entry for note view/edit
+    - Audit log entry for note export/copy
+    - Each entry includes user ID, timestamp, action, resource ID
+
+- id: SC-10
+  category: security
+  milestone: M5
+  title: Role-based access control
+  priority: P1
+  steps:
+    - Create encounters as User A
+    - Attempt to access User A's encounters as User B
+    - Verify admin role can access all encounters
+  expected:
+    - User B cannot access User A's encounters (403)
+    - Admin role can access all encounters
+    - Read-only role can view but not edit
+
+# =============================================================================
+# UI/UX (UX)
+# =============================================================================
+
+- id: UX-01
+  category: ui
+  milestone: M1
+  title: Recording start and stop
+  priority: P0
+  steps:
+    - Open capture view
+    - Click record button
+    - Verify visual recording indicator
+    - Speak for 30 seconds
+    - Click stop button
+    - Verify recording stops and transcript appears
+  expected:
+    - One-click start
+    - Clear visual indicator (red dot, timer, waveform)
+    - One-click stop
+    - Transcript appears within 3 seconds of stopping
+
+- id: UX-02
+  category: ui
+  milestone: M2
+  title: Transcript review efficiency
+  priority: P1
+  steps:
+    - Generate transcript from 15-minute encounter
+    - Time physician reviewing and correcting transcript
+    - Count required clicks/keystrokes
+  expected:
+    - Reviewable in < 3 minutes for a 15-minute encounter
+    - Inline editing without mode switches
+    - Speaker labels correctable with single click
+
+- id: UX-03
+  category: ui
+  milestone: M2
+  title: Note section accept/reject
+  priority: P0
+  steps:
+    - View generated note with multiple sections
+    - Accept one section, reject another, edit a third
+    - Verify each action completes in minimal clicks
+  expected:
+    - Accept = 1 click per section
+    - Reject = 1 click (section removed or flagged for rewrite)
+    - Edit = click into section, type, done
+    - No save button needed (auto-save)
+
+- id: UX-04
+  category: ui
+  milestone: M2
+  title: Copy to clipboard
+  priority: P0
+  steps:
+    - Finalize a note
+    - Click copy button
+    - Paste into a text editor or EHR-like text field
+  expected:
+    - One click to copy
+    - Pasted output is formatted (not raw markdown)
+    - Headings, bullets, and structure preserved
+    - Toast/confirmation that copy succeeded
+
+- id: UX-05
+  category: ui
+  milestone: M4
+  title: Mobile recording via PWA
+  priority: P1
+  steps:
+    - Install PWA on mobile device (iOS Safari or Android Chrome)
+    - Open app and start recording
+    - Complete a 5-minute encounter
+    - Verify transcript generated
+  expected:
+    - PWA installable on both platforms
+    - Recording works from mobile browser
+    - Audio quality sufficient for accurate transcription
+    - Transcript accessible on desktop for note generation
+
+- id: UX-06
+  category: ui
+  milestone: M4
+  title: Keyboard navigation
+  priority: P2
+  steps:
+    - Navigate entire workflow using only keyboard
+    - Record, review transcript, review note, copy
+  expected:
+    - All actions accessible via keyboard
+    - Tab order is logical
+    - Focus indicators visible
+    - Keyboard shortcuts documented
+
+- id: UX-07
+  category: ui
+  milestone: M4
+  title: Error recovery
+  priority: P1
+  steps:
+    - Deny microphone permission → verify helpful error message
+    - Simulate network loss during recording → verify recording continues
+    - Simulate STT failure → verify retry or fallback
+    - Close browser during transcript review → verify draft preserved
+  expected:
+    - Clear, actionable error messages for each scenario
+    - No data loss on recoverable errors
+    - Graceful degradation (recording continues without network)
+
+# =============================================================================
+# PERFORMANCE (PF)
+# =============================================================================
+
+- id: PF-01
+  category: performance
+  milestone: M1
+  title: Transcription latency
+  priority: P0
+  steps:
+    - Record 5-minute encounter with streaming transcription
+    - Measure delay between speech and transcript appearance
+  expected:
+    - Transcript appears < 2 seconds behind real-time speech
+    - No transcript gaps or dropped segments
+
+- id: PF-02
+  category: performance
+  milestone: M2
+  title: Note generation time
+  priority: P0
+  steps:
+    - Submit transcript from 15-minute encounter
+    - Measure time from submission to complete note
+  expected:
+    - Complete note generated in < 30 seconds
+    - Progress indicator shown during generation
+
+- id: PF-03
+  category: performance
+  milestone: M3
+  title: Knowledge service lookup time
+  priority: P1
+  steps:
+    - Query knowledge service for plan matching
+    - Query for medication lookup
+    - Measure response times
+  expected:
+    - Plan matching < 500ms
+    - Medication lookup < 200ms
+    - No degradation with full plans.json loaded
+
+- id: PF-04
+  category: performance
+  milestone: M4
+  title: UI interaction responsiveness
+  priority: P1
+  steps:
+    - Measure response time for common UI actions
+    - Button clicks, section edits, navigation
+  expected:
+    - All UI interactions respond in < 100ms
+    - No perceptible lag during note editing
+    - Smooth scrolling in transcript and note views
+
+- id: PF-05
+  category: performance
+  milestone: M1
+  title: Browser memory usage during recording
+  priority: P1
+  steps:
+    - Start recording and monitor browser memory usage
+    - Record for 30 minutes continuously
+    - Check for memory leaks
+  expected:
+    - Memory usage < 512MB during recording
+    - No memory growth over time (no leaks)
+    - Browser remains responsive throughout
+
+- id: PF-06
+  category: performance
+  milestone: M4
+  title: Concurrent user handling
+  priority: P2
+  steps:
+    - Simulate 10 concurrent users processing encounters
+    - Monitor API response times and error rates
+  expected:
+    - No degradation with 10 concurrent users
+    - API response times within 2x of single-user baseline
+    - Zero errors due to concurrency

@@ -1,0 +1,76 @@
+{
+  "description": "Sample transcript: New onset seizure consult (synthetic, no real PHI)",
+  "transcript_id": "test-001",
+  "segments": [
+    {
+      "speaker": "physician",
+      "start": 0.0,
+      "end": 4.2,
+      "text": "Good morning, I'm Dr. Smith from neurology. I understand you had a seizure yesterday?",
+      "confidence": 0.97
+    },
+    {
+      "speaker": "patient",
+      "start": 4.5,
+      "end": 12.1,
+      "text": "Yes, my wife says I fell down and was shaking all over for about two minutes. I don't remember any of it. I just woke up confused and my tongue was sore.",
+      "confidence": 0.94
+    },
+    {
+      "speaker": "physician",
+      "start": 12.5,
+      "end": 16.8,
+      "text": "Have you ever had anything like this before? Any history of seizures or epilepsy?",
+      "confidence": 0.98
+    },
+    {
+      "speaker": "patient",
+      "start": 17.0,
+      "end": 21.3,
+      "text": "No, never. This is the first time. I've been healthy my whole life.",
+      "confidence": 0.96
+    },
+    {
+      "speaker": "physician",
+      "start": 21.5,
+      "end": 28.0,
+      "text": "Any family history of seizures? And are you taking any medications currently?",
+      "confidence": 0.97
+    },
+    {
+      "speaker": "patient",
+      "start": 28.2,
+      "end": 33.5,
+      "text": "No family history that I know of. I just take lisinopril for blood pressure.",
+      "confidence": 0.95
+    },
+    {
+      "speaker": "physician",
+      "start": 34.0,
+      "end": 55.0,
+      "text": "Okay. Let me do a neurological exam. Mental status is alert and oriented times three. Cranial nerves two through twelve are intact. Motor exam shows five out of five strength in all extremities. Sensation is intact to light touch throughout. Reflexes are two plus and symmetric. Toes are downgoing bilaterally. Coordination is normal with finger to nose and heel to shin. Gait is steady.",
+      "confidence": 0.92
+    },
+    {
+      "speaker": "physician",
+      "start": 55.5,
+      "end": 72.0,
+      "text": "So my assessment is this is a new onset generalized tonic clonic seizure. The exam is nonfocal which is reassuring but we need to work this up. I'd like to get an MRI of the brain with and without contrast, a routine EEG, and some basic labs including a CMP and CBC. I'm going to start you on levetiracetam 500 milligrams twice daily. You cannot drive until you're seizure free for six months per state law. I'd like to see you back in clinic in four weeks.",
+      "confidence": 0.91
+    }
+  ],
+  "duration_seconds": 72,
+  "word_count": 285,
+  "expected_output": {
+    "note_type": "soap",
+    "expected_sections": ["subjective", "objective", "assessment", "plan"],
+    "expected_diagnoses": ["new onset seizure", "generalized tonic clonic seizure"],
+    "expected_medications": [
+      {"name": "levetiracetam", "dose": "500mg", "frequency": "BID"},
+      {"name": "lisinopril", "category": "home_medication"}
+    ],
+    "expected_plan_match": "new-onset-seizure",
+    "expected_icd10": ["R56.9", "G40.909"],
+    "expected_workup": ["MRI brain with and without contrast", "routine EEG", "CMP", "CBC"]
+  }
+}

@@ -1,0 +1,609 @@
+openapi: 3.1.0
+info:
+  title: Neuro Scribe API
+  version: 0.1.0
+  description: |
+    AI-powered clinical documentation assistant for neurology.
+
+    **Authentication:** All endpoints except `/health` require a Bearer JWT token.
+
+    **PHI Notice:** Endpoints marked with 🔒 handle Protected Health Information.
+    All PHI is encrypted at rest (AES-256-GCM) and in transit (TLS 1.3).
+    Every PHI access is recorded in the audit log.
+  contact:
+    name: Neuro Scribe Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.neuro-scribe.example.com
+    description: Production (replace with actual URL)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns service status. No authentication required.
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: neuro-scribe
+                  version:
+                    type: string
+                    example: 0.1.0
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/encounters:
+    post:
+      summary: Create a new encounter
+      description: |
+        🔒 Creates a new encounter record for the authenticated physician.
+        Returns the encounter ID for subsequent operations.
+      tags: [Encounters]
+      responses:
+        "201":
+          description: Encounter created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse_Encounter"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      summary: List encounters
+      description: |
+        🔒 Returns all encounters for the authenticated physician.
+        Sorted by creation date (newest first).
+      tags: [Encounters]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/EncounterStatus"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of encounters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EncounterSummary"
+
+  /api/encounters/{id}:
+    get:
+      summary: Get encounter details
+      description: |
+        🔒 Returns full encounter with transcript and clinical note (if generated).
+        PHI content is decrypted server-side before returning.
+      tags: [Encounters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Encounter with transcript and note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse_Encounter"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/encounters/{id}/transcribe:
+    post:
+      summary: Upload audio for transcription
+      description: |
+        🔒 Uploads an audio file for batch transcription.
+        Audio is processed by the STT provider and discarded — never stored.
+        Returns the transcript when complete.
+      tags: [Transcription]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file (.wav, .mp3, .m4a, .webm)
+                config:
+                  $ref: "#/components/schemas/AudioConfig"
+      responses:
+        "200":
+          description: Transcription complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse_Transcript"
+
+  /api/encounters/{id}/generate:
+    post:
+      summary: Generate clinical note
+      description: |
+        🔒 Triggers AI note generation from the encounter's transcript.
+        Multi-step pipeline: section extraction → knowledge enrichment → note assembly.
+        Returns the generated draft note.
+      tags: [Generation]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                noteType:
+                  $ref: "#/components/schemas/NoteType"
+                includeKnowledge:
+                  type: boolean
+                  default: true
+                  description: Include plan matching and medication validation
+                style:
+                  type: string
+                  enum: [prose, bullets, mixed]
+                  default: mixed
+      responses:
+        "200":
+          description: Note generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse_ClinicalNote"
+
+  /api/encounters/{id}/note:
+    patch:
+      summary: Update note sections
+      description: |
+        🔒 Updates specific sections of a clinical note.
+        Used when a physician edits, accepts, or rejects a generated section.
+      tags: [Generation]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sections:
+                  type: object
+                  description: Key-value map of section name → updated content
+                  additionalProperties:
+                    type: string
+      responses:
+        "200":
+          description: Note updated
+
+  /api/encounters/{id}/finalize:
+    post:
+      summary: Finalize a clinical note
+      description: |
+        🔒 Marks the note as finalized. After finalization, the note
+        becomes read-only and is available for export/copy.
+      tags: [Encounters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Note finalized
+
+  /api/knowledge/plans:
+    get:
+      summary: Search clinical plans
+      description: |
+        Search the Neuro Plans knowledge base by diagnosis text, ICD-10 code,
+        or keywords. No PHI — returns only clinical reference data.
+      tags: [Knowledge]
+      parameters:
+        - name: diagnosis
+          in: query
+          schema:
+            type: string
+          description: Free-text diagnosis (e.g., "new onset seizure")
+        - name: icd10
+          in: query
+          schema:
+            type: string
+          description: ICD-10 code (e.g., "G40.909")
+        - name: keywords
+          in: query
+          schema:
+            type: string
+          description: Comma-separated keywords (e.g., "seizure,epilepsy")
+      responses:
+        "200":
+          description: Matched plans sorted by relevance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PlanMatch"
+              example:
+                data:
+                  - planId: new-onset-seizure
+                    planTitle: New Onset Seizure
+                    matchScore: 0.95
+                    matchedOn: keyword
+
+  /api/knowledge/medications/{name}:
+    get:
+      summary: Look up a medication
+      description: |
+        Look up a medication by generic name, brand name, or alias.
+        Returns dosing contexts, contraindications, monitoring, and settings.
+        No PHI — returns only reference data from medications.json.
+      tags: [Knowledge]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Medication name (e.g., "levetiracetam" or "Keppra")
+      responses:
+        "200":
+          description: Medication data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse_MedicationData"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/knowledge/medications/validate-dose:
+    post:
+      summary: Validate a medication dose
+      description: |
+        Compares a dictated dose against recommended ranges from the
+        medication database. Returns validation result with severity.
+      tags: [Knowledge]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [medicationName, mentionedDose]
+              properties:
+                medicationName:
+                  type: string
+                  example: amitriptyline
+                mentionedDose:
+                  type: string
+                  example: "500 mg"
+                indication:
+                  type: string
+                  example: neuropathic pain
+      responses:
+        "200":
+          description: Dose validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse_DoseValidation"
+
+  /api/knowledge/icd10:
+    post:
+      summary: Suggest ICD-10 codes
+      description: |
+        Suggests ICD-10 codes based on assessment text by cross-referencing
+        against the clinical plans knowledge base.
+      tags: [Knowledge]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assessmentText]
+              properties:
+                assessmentText:
+                  type: string
+                  example: "New onset generalized tonic-clonic seizure, nonfocal exam"
+      responses:
+        "200":
+          description: ICD-10 suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Icd10Suggestion"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token from your auth provider (Auth0, Cognito, etc.).
+        For development, generate a token with `make token`.
+
+  schemas:
+    EncounterStatus:
+      type: string
+      enum: [recording, transcribed, generating, drafted, reviewed, finalized]
+
+    NoteType:
+      type: string
+      enum: [soap, hp, progress, consult, procedure]
+
+    AudioConfig:
+      type: object
+      properties:
+        sampleRate:
+          type: integer
+          default: 16000
+        channels:
+          type: integer
+          default: 1
+        format:
+          type: string
+          enum: [webm, pcm, wav]
+
+    EncounterSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/EncounterStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PlanMatch:
+      type: object
+      properties:
+        planId:
+          type: string
+          example: new-onset-seizure
+        planTitle:
+          type: string
+          example: New Onset Seizure
+        matchScore:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        matchedOn:
+          type: string
+          enum: [icd10, keyword, semantic]
+
+    MedicationData:
+      type: object
+      properties:
+        name:
+          type: string
+        brandNames:
+          type: array
+          items:
+            type: string
+        drugClass:
+          type: string
+        contexts:
+          type: array
+          items:
+            type: object
+            properties:
+              indication:
+                type: string
+              dosing:
+                type: string
+              route:
+                type: string
+              frequency:
+                type: string
+        contraindications:
+          type: array
+          items:
+            type: string
+        monitoring:
+          type: array
+          items:
+            type: string
+        settings:
+          type: object
+          properties:
+            ed:
+              type: boolean
+            hosp:
+              type: boolean
+            opd:
+              type: boolean
+            icu:
+              type: boolean
+
+    DoseValidation:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+        mentionedDose:
+          type: string
+        recommendedRange:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning]
+        message:
+          type: string
+
+    Icd10Suggestion:
+      type: object
+      properties:
+        code:
+          type: string
+          example: G40.909
+        description:
+          type: string
+        confidence:
+          type: number
+        source:
+          type: string
+          enum: [plan_match, extraction]
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+          description: Generic message only — NEVER contains PHI
+
+    ApiResponse_Encounter:
+      type: object
+      properties:
+        data:
+          type: object
+        error:
+          $ref: "#/components/schemas/ApiError"
+
+    ApiResponse_Transcript:
+      type: object
+      properties:
+        data:
+          type: object
+        error:
+          $ref: "#/components/schemas/ApiError"
+
+    ApiResponse_ClinicalNote:
+      type: object
+      properties:
+        data:
+          type: object
+        error:
+          $ref: "#/components/schemas/ApiError"
+
+    ApiResponse_MedicationData:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationData"
+        error:
+          $ref: "#/components/schemas/ApiError"
+
+    ApiResponse_DoseValidation:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DoseValidation"
+        error:
+          $ref: "#/components/schemas/ApiError"
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: "#/components/schemas/ApiError"
+          example:
+            error:
+              code: "401"
+              message: Authentication required
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: "#/components/schemas/ApiError"
+          example:
+            error:
+              code: "404"
+              message: Resource not found
+
+tags:
+  - name: System
+    description: Health checks and system status
+  - name: Encounters
+    description: 🔒 Encounter lifecycle management (PHI)
+  - name: Transcription
+    description: 🔒 Audio-to-text processing (PHI)
+  - name: Generation
+    description: 🔒 AI note generation (PHI)
+  - name: Knowledge
+    description: Clinical plan and medication reference data (no PHI)
