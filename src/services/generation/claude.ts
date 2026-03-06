@@ -1,16 +1,16 @@
 /**
- * Claude Note Generation Service
+ * Claude Note Generation Service (via AWS Bedrock)
  *
- * Multi-step pipeline: transcript → section extraction → knowledge enrichment → note assembly.
- * Uses Claude Haiku for fast extraction, Sonnet for polished clinical note generation.
+ * Multi-step pipeline: transcript -> section extraction -> knowledge enrichment -> note assembly.
+ * Uses Claude Haiku (via Bedrock) for fast extraction, Sonnet (via Bedrock) for polished clinical note generation.
  *
- * PHI handling: Transcript text IS sent to Claude (BAA required).
+ * PHI handling: Transcript text IS sent to Bedrock (AWS BAA required).
  * No PHI in logs, error messages, or prompt metadata.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { invokeBedrockClaude, BEDROCK_MODELS } from "../../lib/bedrock.js";
 import type {
   NoteGenerationService,
   GenerationOptions,
@@ -106,13 +106,11 @@ interface NoteGenerationResponse {
 }
 
 export class ClaudeNoteGenerationService implements NoteGenerationService {
-  private client: Anthropic;
   private sectionExtractPrompt: string;
   private noteGeneratePrompt: string;
   private examStructurePrompt: string;
 
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+  constructor() {
     this.sectionExtractPrompt = loadPrompt("section-extract.md");
     this.noteGeneratePrompt = loadPrompt("note-generate.md");
     this.examStructurePrompt = loadPrompt("exam-structure.md");
@@ -125,7 +123,7 @@ export class ClaudeNoteGenerationService implements NoteGenerationService {
   ): Promise<ClinicalNote> {
     const startTime = Date.now();
 
-    // Step 1: Section extraction (Haiku — fast)
+    // Step 1: Section extraction (Haiku via Bedrock — fast)
     logger.info("generation.step.extract", { message: "Extracting sections from transcript" });
     const extracted = await this.extractSections(transcript);
 
@@ -142,7 +140,7 @@ export class ClaudeNoteGenerationService implements NoteGenerationService {
       icd10Suggestions = enrichment.icd10Suggestions;
     }
 
-    // Step 3: Note assembly (Sonnet — clinical precision)
+    // Step 3: Note assembly (Sonnet via Bedrock — clinical precision)
     logger.info("generation.step.assemble", { message: "Assembling clinical note" });
     const note = await this.assembleNote(
       extracted,
@@ -165,9 +163,8 @@ export class ClaudeNoteGenerationService implements NoteGenerationService {
     const systemPrompt = this.noteGeneratePrompt ||
       "You are a neurology clinical documentation specialist. Regenerate the specified section based on the transcript and physician feedback.";
 
-    const response = await this.client.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 2000,
+    const responseText = await invokeBedrockClaude({
+      modelId: BEDROCK_MODELS.SONNET,
       system: systemPrompt,
       messages: [
         {
@@ -187,10 +184,10 @@ export class ClaudeNoteGenerationService implements NoteGenerationService {
           }),
         },
       ],
+      maxTokens: 2000,
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    return textBlock ? textBlock.text : "";
+    return responseText;
   }
 
   // --- Private pipeline steps ---
@@ -215,9 +212,8 @@ Rules:
 
 Return JSON matching the provided schema.`;
 
-    const response = await this.client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 4000,
+    const responseText = await invokeBedrockClaude({
+      modelId: BEDROCK_MODELS.HAIKU,
       system: systemPrompt,
       messages: [
         {
@@ -235,16 +231,12 @@ Return JSON matching the provided schema.`;
           }),
         },
       ],
+      maxTokens: 4000,
     });
-
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      throw new Error("Claude returned no text response for section extraction");
-    }
 
     try {
       // Try to parse JSON from the response (may be wrapped in ```json blocks)
-      const jsonStr = textBlock.text
+      const jsonStr = responseText
         .replace(/```json\s*/g, "")
         .replace(/```\s*/g, "")
         .trim();
@@ -257,7 +249,7 @@ Return JSON matching the provided schema.`;
       return {
         sections: {
           subjective: {
-            content: textBlock.text,
+            content: responseText,
             source_segments: [],
             confidence: 0.5,
           },
@@ -356,9 +348,8 @@ Rules:
 
 Return JSON matching the provided schema.`;
 
-    const response = await this.client.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 6000,
+    const responseText = await invokeBedrockClaude({
+      modelId: BEDROCK_MODELS.SONNET,
       system: systemPrompt,
       messages: [
         {
@@ -377,16 +368,12 @@ Return JSON matching the provided schema.`;
           }),
         },
       ],
+      maxTokens: 6000,
     });
-
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      throw new Error("Claude returned no text response for note assembly");
-    }
 
     let noteResponse: NoteGenerationResponse;
     try {
-      const jsonStr = textBlock.text
+      const jsonStr = responseText
         .replace(/```json\s*/g, "")
         .replace(/```\s*/g, "")
         .trim();

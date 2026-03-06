@@ -2,6 +2,7 @@
  * Note Generation Service Factory
  *
  * Creates and caches the note generation service singleton.
+ * Uses AWS Bedrock for Claude model access (no API key needed — uses AWS credential chain).
  */
 
 import type { NoteGenerationService } from "./index.js";
@@ -11,17 +12,18 @@ let instance: NoteGenerationService | null = null;
 
 /**
  * Get the note generation service singleton.
- * Reads ANTHROPIC_API_KEY from environment.
+ * Uses AWS Bedrock — credentials come from the standard AWS credential chain
+ * (environment variables, IAM role, or SSO profile).
  */
 export function getNoteGenerationService(): NoteGenerationService {
   if (!instance) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey || apiKey === "sk-ant-placeholder") {
+    const region = process.env.AWS_REGION;
+    if (!region) {
       throw new Error(
-        "ANTHROPIC_API_KEY is not configured. Set it in .env to enable note generation.",
+        "AWS_REGION is not configured. Set it in .env to enable Bedrock-based note generation.",
       );
     }
-    instance = new ClaudeNoteGenerationService(apiKey);
+    instance = new ClaudeNoteGenerationService();
   }
   return instance;
 }
