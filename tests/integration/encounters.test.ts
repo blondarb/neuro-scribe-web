@@ -2,7 +2,7 @@
  * Integration tests for encounter lifecycle
  *
  * Tests the full flow: create → transcribe → generate → edit → finalize
- * Using mocked external services (Deepgram, Claude) but real validation and middleware.
+ * Using mocked external services (AWS Bedrock, Amazon Transcribe) but real validation and middleware.
  */
 
 import { describe, it, expect, beforeAll, vi } from "vitest";
@@ -135,9 +135,9 @@ describe("Encounter Lifecycle (schema validation)", () => {
 });
 
 describe("Service factory contracts", () => {
-  it("transcription factory should throw without API key", async () => {
-    const originalKey = process.env.DEEPGRAM_API_KEY;
-    process.env.DEEPGRAM_API_KEY = "";
+  it("transcription factory should throw without AWS_REGION", async () => {
+    const originalRegion = process.env.AWS_REGION;
+    process.env.AWS_REGION = "";
 
     // Reset module to pick up new env
     const { resetTranscriptionService, getTranscriptionService } = await import(
@@ -145,26 +145,26 @@ describe("Service factory contracts", () => {
     );
     resetTranscriptionService();
 
-    expect(() => getTranscriptionService()).toThrow("DEEPGRAM_API_KEY");
+    expect(() => getTranscriptionService()).toThrow("AWS_REGION");
 
     // Restore
-    process.env.DEEPGRAM_API_KEY = originalKey;
+    process.env.AWS_REGION = originalRegion;
     resetTranscriptionService();
   });
 
-  it("generation factory should throw without API key", async () => {
-    const originalKey = process.env.ANTHROPIC_API_KEY;
-    process.env.ANTHROPIC_API_KEY = "";
+  it("generation factory should throw without AWS_REGION", async () => {
+    const originalRegion = process.env.AWS_REGION;
+    process.env.AWS_REGION = "";
 
     const { resetNoteGenerationService, getNoteGenerationService } = await import(
       "@services/generation/factory.js"
     );
     resetNoteGenerationService();
 
-    expect(() => getNoteGenerationService()).toThrow("ANTHROPIC_API_KEY");
+    expect(() => getNoteGenerationService()).toThrow("AWS_REGION");
 
     // Restore
-    process.env.ANTHROPIC_API_KEY = originalKey;
+    process.env.AWS_REGION = originalRegion;
     resetNoteGenerationService();
   });
 });

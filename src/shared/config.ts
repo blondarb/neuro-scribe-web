@@ -21,17 +21,19 @@ const configSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
 
-  // Anthropic Claude API
-  ANTHROPIC_API_KEY: z
+  // AWS (Bedrock + Transcribe Medical)
+  AWS_REGION: z
     .string()
-    .min(1, "ANTHROPIC_API_KEY is required")
-    .default("sk-ant-placeholder"),
-
-  // Deepgram STT
-  DEEPGRAM_API_KEY: z
+    .min(1, "AWS_REGION is required")
+    .default("us-east-2"),
+  AWS_ACCESS_KEY_ID: z
     .string()
-    .min(1, "DEEPGRAM_API_KEY is required")
-    .default("dg-placeholder"),
+    .min(1, "AWS_ACCESS_KEY_ID is required")
+    .default("aws-placeholder"),
+  AWS_SECRET_ACCESS_KEY: z
+    .string()
+    .min(1, "AWS_SECRET_ACCESS_KEY is required")
+    .default("aws-placeholder"),
 
   // Authentication
   AUTH_ISSUER: z.string().default("neuro-scribe"),
@@ -87,16 +89,16 @@ export function loadConfig(): AppConfig {
     );
   }
 
-  // Warn if using placeholder API keys in non-test environment
+  // Warn if using placeholder AWS credentials in non-test environment
   if (result.data.NODE_ENV !== "test") {
-    if (result.data.ANTHROPIC_API_KEY === "sk-ant-placeholder") {
+    if (result.data.AWS_ACCESS_KEY_ID === "aws-placeholder") {
       console.warn(
-        "WARNING: ANTHROPIC_API_KEY is a placeholder. Note generation will fail.",
+        "WARNING: AWS_ACCESS_KEY_ID is a placeholder. Bedrock and Transcribe will fail.",
       );
     }
-    if (result.data.DEEPGRAM_API_KEY === "dg-placeholder") {
+    if (result.data.AWS_SECRET_ACCESS_KEY === "aws-placeholder") {
       console.warn(
-        "WARNING: DEEPGRAM_API_KEY is a placeholder. Transcription will fail.",
+        "WARNING: AWS_SECRET_ACCESS_KEY is a placeholder. Bedrock and Transcribe will fail.",
       );
     }
   }

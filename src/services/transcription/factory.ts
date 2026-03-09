@@ -2,27 +2,27 @@
  * Transcription Service Factory
  *
  * Creates and caches the transcription service singleton.
- * Currently supports Deepgram; add Whisper by creating whisper.ts.
+ * Uses Amazon Transcribe Medical via AWS SDK (credential chain).
  */
 
 import type { TranscriptionService } from "./index.js";
-import { DeepgramTranscriptionService } from "./deepgram.js";
+import { AmazonTranscribeService } from "./transcribe.js";
 
 let instance: TranscriptionService | null = null;
 
 /**
  * Get the transcription service singleton.
- * Reads DEEPGRAM_API_KEY from environment.
+ * Uses AWS credential chain (env vars, IAM role, or SSO profile).
  */
 export function getTranscriptionService(): TranscriptionService {
   if (!instance) {
-    const apiKey = process.env.DEEPGRAM_API_KEY;
-    if (!apiKey || apiKey === "dg-placeholder") {
+    const region = process.env.AWS_REGION;
+    if (!region) {
       throw new Error(
-        "DEEPGRAM_API_KEY is not configured. Set it in .env to enable transcription.",
+        "AWS_REGION is not configured. Set it in .env to enable Amazon Transcribe Medical.",
       );
     }
-    instance = new DeepgramTranscriptionService(apiKey);
+    instance = new AmazonTranscribeService();
   }
   return instance;
 }
