@@ -136,3 +136,24 @@ Track in `SCOPING.md` Decision Log. Key pending:
 | Neuro term transcription accuracy | ≥95% |
 | Note generation latency | <30s |
 | Zero PHI in logs | 100% |
+
+## Body of Work
+
+**Status**: Legacy
+
+### Recent
+- Migrated AI backend to AWS Bedrock (replaced OpenAI)
+- Deprecated Deepgram service in favor of Bedrock pipeline
+- Added strategic synthesis doc for Bedrock architecture
+- Initial commit with PRD, architecture, scoping, QA framework, and prompt templates
+
+### In Progress
+- None — development paused after Bedrock migration
+
+### Planned
+- Open decisions remain: frontend framework, hosting, auth provider (see SCOPING.md)
+- May be superseded by neuro-scribe-personal (native Mac app) for production use
+
+### Known Issues
+- STT provider not decided (Deepgram vs Whisper vs AWS Transcribe)
+- No implementation beyond planning docs and AI backend migration
