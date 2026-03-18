@@ -157,3 +157,16 @@ Track in `SCOPING.md` Decision Log. Key pending:
 ### Known Issues
 - STT provider not decided (Deepgram vs Whisper vs AWS Transcribe)
 - No implementation beyond planning docs and AI backend migration
+
+## Documentation Files
+
+Update these when committing changes (per global Commit Workflow rules):
+
+- `CLAUDE.md` — update if architecture, config, or status changed
+- `PRD.md` — update if product requirements changed
+- `ARCHITECTURE.md` — update if system design or data flow changed
+- `IMPLEMENTATION_PLAN.md` — update if implementation approach changed
+- `SCOPING.md` — update if milestones or timeline changed
+- `docs/DEPLOYMENT.md` — update if deploy process changed
+- `docs/SECURITY.md` — update if security requirements changed
+- `qa/TEST_STRATEGY.md` — update if QA approach changed
