@@ -66,7 +66,9 @@ export async function invokeBedrockClaude(options: {
   const requestBody = {
     anthropic_version: "bedrock-2023-05-31",
     max_tokens: options.maxTokens,
-    system: options.system,
+    system: [
+      { type: "text", text: options.system, cache_control: { type: "ephemeral" } },
+    ],
     messages: options.messages,
     temperature: options.temperature ?? 0.3,
   };
