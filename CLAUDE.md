@@ -142,6 +142,7 @@ Track in `SCOPING.md` Decision Log. Key pending:
 **Status**: Legacy
 
 ### Recent
+- **Bedrock guardrail integration (Mar 31)** — Added guardrail `04it57nlb3ac` v5 (automated reasoning + clinical safety checks) to note assembly and section regeneration calls. Env vars: `BEDROCK_GUARDRAIL_ID`, `BEDROCK_GUARDRAIL_VERSION`. Guardrail on synthesis only (not extraction) to limit latency impact.
 - Migrated AI backend to AWS Bedrock (replaced OpenAI)
 - Deprecated Deepgram service in favor of Bedrock pipeline
 - Added strategic synthesis doc for Bedrock architecture
