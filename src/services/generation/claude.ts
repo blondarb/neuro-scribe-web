@@ -185,6 +185,7 @@ export class ClaudeNoteGenerationService implements NoteGenerationService {
         },
       ],
       maxTokens: 2000,
+      guardrail: true,
     });
 
     return responseText;
@@ -369,6 +370,7 @@ Return JSON matching the provided schema.`;
         },
       ],
       maxTokens: 6000,
+      guardrail: true,
     });
 
     let noteResponse: NoteGenerationResponse;

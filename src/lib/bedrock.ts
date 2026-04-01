@@ -60,6 +60,9 @@ export async function invokeBedrockClaude(options: {
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   maxTokens: number;
   temperature?: number;
+  /** Apply Bedrock guardrail (clinical safety checks). Reads BEDROCK_GUARDRAIL_ID
+   *  and BEDROCK_GUARDRAIL_VERSION from env. No-op if env vars are not set. */
+  guardrail?: boolean;
 }): Promise<string> {
   const client = getBedrockClient();
 
@@ -73,17 +76,38 @@ export async function invokeBedrockClaude(options: {
     temperature: options.temperature ?? 0.3,
   };
 
+  // Build guardrail parameters if enabled and env vars are set
+  const guardrailId = process.env.BEDROCK_GUARDRAIL_ID;
+  const guardrailVersion = process.env.BEDROCK_GUARDRAIL_VERSION || "5";
+  const applyGuardrail = options.guardrail && guardrailId;
+
   const input: InvokeModelCommandInput = {
     modelId: options.modelId,
     contentType: "application/json",
     accept: "application/json",
     body: JSON.stringify(requestBody),
+    ...(applyGuardrail && {
+      guardrailIdentifier: guardrailId,
+      guardrailVersion,
+      trace: "ENABLED",
+    }),
   };
 
   const command = new InvokeModelCommand(input);
 
   try {
     const response = await client.send(command);
+
+    // Log guardrail action if applied
+    if (applyGuardrail) {
+      const guardrailAction = (response as unknown as Record<string, unknown>).amazonBedrockGuardrailAction;
+      logger.info("bedrock.guardrail.result", {
+        modelId: options.modelId,
+        action: guardrailAction ?? "NONE",
+        guardrailId,
+        guardrailVersion,
+      });
+    }
 
     const responseBody = JSON.parse(
       new TextDecoder().decode(response.body),
